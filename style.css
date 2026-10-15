@@ -1,0 +1,93 @@
+:root {
+  --bg: #e9eef5;
+  --btn-bg: #ffffff;
+  --btn-fg: #1a2233;
+  --btn-border: #d3dae6;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #05070d;
+    --btn-bg: #161d2d;
+    --btn-fg: #e8eefc;
+    --btn-border: #2a3550;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #05070d;
+  --btn-bg: #161d2d;
+  --btn-fg: #e8eefc;
+  --btn-border: #2a3550;
+  color-scheme: dark;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--bg);
+  overflow: hidden;
+  transition: background 0.3s;
+}
+canvas {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+canvas.drag {
+  cursor: grabbing;
+}
+#theme {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  right: 16px;
+  z-index: 5;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  transition:
+    background 0.3s,
+    color 0.3s,
+    transform 0.15s;
+}
+#theme:hover {
+  transform: scale(1.08);
+}
+#theme svg {
+  width: 20px;
+  height: 20px;
+}
+#theme .moon {
+  display: none;
+}
+:root[data-theme="dark"] #theme .sun {
+  display: none;
+}
+:root[data-theme="dark"] #theme .moon {
+  display: block;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) #theme .sun {
+    display: none;
+  }
+  :root:not([data-theme="light"]) #theme .moon {
+    display: block;
+  }
+}
