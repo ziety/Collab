@@ -1,5 +1,16 @@
-import d110 from "./data/d110.json" with { type: "json" };
-import d50 from "./data/d50.json" with { type: "json" };
+// Data is loaded with fetch() (not JSON module imports) so it works in every
+// browser and with any static server: Live Server, start.bat, etc.
+if (location.protocol === "file:") {
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    '<p style="position:fixed;inset:0;display:grid;place-items:center;margin:0;padding:24px;text-align:center;font:16px system-ui,sans-serif;color:#888">' +
+      "Browsers block loading data from file:// pages.<br>Open with start.bat or VS Code Live Server instead.</p>",
+  );
+  throw new Error("Opened via file:// - use start.bat or Live Server");
+}
+const [d110, d50] = await Promise.all(
+  ["data/d110.json", "data/d50.json"].map((u) => fetch(u).then((r) => r.json())),
+);
 
 const root = document.documentElement;
 const canvas = document.getElementById("globe");
@@ -57,6 +68,7 @@ const labels = LOD[1].features
       name: f.properties.name,
       c: d3.geoCentroid(best),
       area: d3.geoArea(f),
+      parea: ba,
     };
   })
   .filter((l) => l.name)
@@ -123,7 +135,14 @@ let lon = 20,
   zoomT = 1,
   dragging = false,
   scrolling = false,
+  spinning = true, // auto-rotation; stops for good on first click/drag/zoom
+  flight = null, // active fly-to animation
   wheelTimer;
+
+function stopAuto() {
+  spinning = false;
+  flight = null; // user input cancels any fly-to in progress
+}
 
 const MINZ = 0.7,
   MAXZ = 16;
@@ -149,9 +168,12 @@ const dist2 = () => {
   return Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
 };
 canvas.addEventListener("pointerdown", (e) => {
+  stopAuto();
   ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   canvas.setPointerCapture(e.pointerId);
   dragging = true;
+  document.activeElement && document.activeElement.blur();
+  closeResults();
   canvas.classList.add("drag");
   if (ptrs.size === 2) pinchD = dist2();
 });
@@ -193,6 +215,7 @@ canvas.addEventListener(
   "wheel",
   (e) => {
     e.preventDefault();
+    stopAuto();
 
     scrolling = true;
     clearTimeout(wheelTimer);
@@ -207,6 +230,130 @@ canvas.addEventListener(
   },
   { passive: false },
 );
+
+/* ---------- fly-to ---------- */
+function flyTo(l) {
+  spinning = false;
+  const lat1 = Math.max(-85, Math.min(85, l.c[1]));
+  const dlon = ((((l.c[0] - lon) % 360) + 540) % 360) - 180; // shortest way round
+  // pick a zoom so the country fills a comfortable part of the view
+  const r = Math.sqrt(l.parea / Math.PI); // angular radius (rad)
+  const z1 = Math.max(1, Math.min(10, 0.61 / Math.sin(Math.max(r, 0.002))));
+  const dist = d3.geoDistance([lon, lat], l.c);
+  flight = {
+    t0: performance.now(),
+    dur: 800 + 900 * (dist / Math.PI),
+    lon0: lon,
+    dlon,
+    lat0: lat,
+    lat1,
+    lz0: Math.log(zoom),
+    lz1: Math.log(z1),
+  };
+}
+function stepFlight(now) {
+  const f = flight,
+    t = Math.min(1, (now - f.t0) / f.dur),
+    e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  lon = f.lon0 + f.dlon * e;
+  lat = f.lat0 + (f.lat1 - f.lat0) * e;
+  zoom = zoomT = Math.exp(f.lz0 + (f.lz1 - f.lz0) * e);
+  if (t >= 1) flight = null;
+}
+
+/* ---------- country search ---------- */
+const qEl = document.getElementById("q"),
+  listEl = document.getElementById("results");
+const norm = (s) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+const countries = labels
+  .map((l) => ({ l, key: norm(l.name) }))
+  .sort((a, b) => a.l.name.localeCompare(b.l.name));
+
+let shown = [],
+  active = -1;
+
+function closeResults() {
+  listEl.hidden = true;
+  qEl.setAttribute("aria-expanded", "false");
+  active = -1;
+}
+function setActive(i) {
+  active = i;
+  [...listEl.children].forEach((li, n) => {
+    li.classList.toggle("active", n === i);
+    if (n === i) li.scrollIntoView({ block: "nearest" });
+  });
+}
+function choose(l) {
+  qEl.value = l.name;
+  closeResults();
+  qEl.blur();
+  flyTo(l);
+}
+function renderResults() {
+  const q = norm(qEl.value.trim());
+  listEl.textContent = "";
+  if (!q) return closeResults();
+  const starts = [],
+    contains = [];
+  for (const c of countries) {
+    const i = c.key.indexOf(q);
+    if (i === 0) starts.push(c);
+    else if (i > 0) contains.push(c);
+  }
+  shown = [...starts, ...contains].map((c) => c.l);
+  if (!shown.length) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No countries found";
+    listEl.appendChild(li);
+  }
+  for (const l of shown) {
+    const li = document.createElement("li");
+    li.setAttribute("role", "option");
+    // highlight the typed text (norm() keeps string length for these names)
+    const i = norm(l.name).indexOf(q);
+    if (i >= 0 && norm(l.name).length === l.name.length) {
+      li.append(l.name.slice(0, i));
+      const m = document.createElement("mark");
+      m.textContent = l.name.slice(i, i + q.length);
+      li.append(m, l.name.slice(i + q.length));
+    } else li.textContent = l.name;
+    li.addEventListener("click", () => choose(l));
+    listEl.appendChild(li);
+  }
+  listEl.hidden = false;
+  qEl.setAttribute("aria-expanded", "true");
+  setActive(shown.length ? 0 : -1);
+}
+qEl.addEventListener("input", renderResults);
+qEl.addEventListener("focus", () => {
+  qEl.select();
+  renderResults();
+});
+qEl.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (!shown.length) return;
+    e.preventDefault();
+    const n = shown.length;
+    setActive((active + (e.key === "ArrowDown" ? 1 : -1) + n) % n);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (shown[active]) choose(shown[active]);
+  } else if (e.key === "Escape") {
+    closeResults();
+    qEl.blur();
+  }
+});
+// keep input focused while clicking a result
+listEl.addEventListener("mousedown", (e) => e.preventDefault());
+document.addEventListener("pointerdown", (e) => {
+  if (!e.target.closest("#search")) closeResults();
+});
 
 /* ---------- render ---------- */
 function draw() {
@@ -258,7 +405,7 @@ function draw() {
   ctx.stroke();
 
   // countries
-  const lod = scrolling | dragging ? LOD[0] : zoom >= 1.7 ? LOD[1] : LOD[0],
+  const lod = scrolling || dragging || flight ? LOD[0] : zoom >= 1.7 ? LOD[1] : LOD[0],
     tn = theme();
   for (const f of lod.features) {
     ctx.beginPath();
@@ -342,9 +489,12 @@ let prev = performance.now();
 function frame(now) {
   const dt = Math.min((now - prev) / 1000, 0.05);
   prev = now;
-  zoom += (zoomT - zoom) * Math.min(1, dt * 10);
-  if (!dragging) lon += (9 / Math.pow(Math.max(1, zoom), 1.3)) * dt;
+  if (flight) stepFlight(now);
+  else zoom += (zoomT - zoom) * Math.min(1, dt * 10);
+  if (!dragging && spinning && !flight)
+    lon += (9 / Math.pow(Math.max(1, zoom), 1.3)) * dt;
   if (lon > 180) lon -= 360;
+  else if (lon < -180) lon += 360;
   draw();
   requestAnimationFrame(frame);
 }

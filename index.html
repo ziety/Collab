@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-  <link>
+  <head>
     <meta charset="utf-8" />
     <meta
       name="viewport"
@@ -11,6 +11,22 @@
   </head>
   <body>
     <canvas id="globe"></canvas>
+    <div id="search">
+      <input
+        id="q"
+        type="text"
+        placeholder="Search country…"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        role="combobox"
+        aria-expanded="false"
+        aria-controls="results"
+        aria-autocomplete="list"
+        aria-label="Search for a country"
+      />
+      <ul id="results" role="listbox" hidden></ul>
+    </div>
     <button id="theme" aria-label="Toggle theme" title="Toggle theme">
       <svg
         class="sun"

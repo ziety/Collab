@@ -3,6 +3,8 @@
   --btn-bg: #ffffff;
   --btn-fg: #1a2233;
   --btn-border: #d3dae6;
+  --hl: #2f7de1;
+  --hover: rgba(47, 125, 225, 0.14);
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -13,6 +15,8 @@
     --btn-bg: #161d2d;
     --btn-fg: #e8eefc;
     --btn-border: #2a3550;
+    --hl: #7fb0ff;
+    --hover: rgba(127, 176, 255, 0.16);
     color-scheme: dark;
   }
 }
@@ -21,6 +25,8 @@
   --btn-bg: #161d2d;
   --btn-fg: #e8eefc;
   --btn-border: #2a3550;
+  --hl: #7fb0ff;
+  --hover: rgba(127, 176, 255, 0.16);
   color-scheme: dark;
 }
 html,
@@ -90,4 +96,80 @@ canvas.drag {
   :root:not([data-theme="light"]) #theme .moon {
     display: block;
   }
+}
+
+/* ---------- country search ---------- */
+#search {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  width: min(380px, calc(100vw - 148px));
+}
+#q {
+  box-sizing: border-box;
+  width: 100%;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 21px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font: 16px system-ui, -apple-system, "Segoe UI", sans-serif;
+  outline: none;
+  transition:
+    background 0.3s,
+    color 0.3s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+#q::placeholder {
+  color: var(--btn-fg);
+  opacity: 0.5;
+}
+#q:focus {
+  border-color: var(--hl);
+  box-shadow: 0 0 0 3px var(--hover);
+}
+#results {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  max-height: min(320px, 55vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border-radius: 16px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  font: 15px system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+#results[hidden] {
+  display: none;
+}
+#results li {
+  padding: 9px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+#results li.active,
+#results li:hover {
+  background: var(--hover);
+}
+#results li.empty {
+  cursor: default;
+  opacity: 0.6;
+}
+#results li.empty:hover {
+  background: none;
+}
+#results mark {
+  background: none;
+  color: var(--hl);
+  font-weight: 700;
 }
