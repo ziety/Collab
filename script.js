@@ -32,7 +32,7 @@ function prep(t) {
   };
 }
 
-const LOD = [prep(d110), prep(d110)];
+const LOD = [prep(d110), prep(d50)];
 // label anchors: centroid of each country's largest piece
 
 const labels = LOD[1].features
@@ -121,7 +121,10 @@ let lon = 20,
   lat = 18,
   zoom = 1,
   zoomT = 1,
-  dragging = false;
+  dragging = false,
+  scrolling = false,
+  wheelTimer;
+
 const MINZ = 0.7,
   MAXZ = 16;
 function resize() {
@@ -190,6 +193,13 @@ canvas.addEventListener(
   "wheel",
   (e) => {
     e.preventDefault();
+
+    scrolling = true;
+    clearTimeout(wheelTimer);
+    wheelTimer = setTimeout(() => {
+      scrolling = false;
+    }, 200);
+
     zoomT = Math.max(
       MINZ,
       Math.min(MAXZ, zoomT * Math.exp(-e.deltaY * 0.0016)),
@@ -248,7 +258,7 @@ function draw() {
   ctx.stroke();
 
   // countries
-  const lod = zoom >= 1.7 ? LOD[1] : LOD[0],
+  const lod = scrolling | dragging ? LOD[0] : zoom >= 1.7 ? LOD[1] : LOD[0],
     tn = theme();
   for (const f of lod.features) {
     ctx.beginPath();
