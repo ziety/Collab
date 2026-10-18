@@ -9,7 +9,9 @@ if (location.protocol === "file:") {
   throw new Error("Opened via file:// - use start.bat or Live Server");
 }
 const [d110, d50] = await Promise.all(
-  ["data/d110.json", "data/d50.json"].map((u) => fetch(u).then((r) => r.json())),
+  ["data/d110.json", "data/d50.json"].map((u) =>
+    fetch(u).then((r) => r.json()),
+  ),
 );
 
 const root = document.documentElement;
@@ -89,6 +91,8 @@ const THEMES = {
     shadeHi: "rgba(255,255,255,.28)",
     shadeLo: "rgba(10,30,70,.38)",
     glow: "rgba(120,180,255,.45)",
+    select: "#FDE047",
+    selectText: "#EA835E",
   },
   dark: {
     oceanIn: "#10264a",
@@ -101,6 +105,8 @@ const THEMES = {
     shadeHi: "rgba(255,255,255,.10)",
     shadeLo: "rgba(0,0,10,.6)",
     glow: "rgba(80,140,255,.35)",
+    select: "#FDE047",
+    selectText: "#EA835E",
   },
 };
 
@@ -274,7 +280,8 @@ const countries = labels
   .sort((a, b) => a.l.name.localeCompare(b.l.name));
 
 let shown = [],
-  active = -1;
+  active = -1,
+  select = null;
 
 function closeResults() {
   listEl.hidden = true;
@@ -289,6 +296,7 @@ function setActive(i) {
   });
 }
 function choose(l) {
+  select = l.name;
   qEl.value = l.name;
   closeResults();
   qEl.blur();
@@ -297,7 +305,10 @@ function choose(l) {
 function renderResults() {
   const q = norm(qEl.value.trim());
   listEl.textContent = "";
-  if (!q) return closeResults();
+  if (!q) {
+    select = null;
+    return closeResults();
+  }
   const starts = [],
     contains = [];
   for (const c of countries) {
@@ -405,12 +416,13 @@ function draw() {
   ctx.stroke();
 
   // countries
-  const lod = scrolling || dragging || flight ? LOD[0] : zoom >= 1.7 ? LOD[1] : LOD[0],
+  const lod =
+      scrolling || dragging || flight ? LOD[0] : zoom >= 1.7 ? LOD[1] : LOD[0],
     tn = theme();
   for (const f of lod.features) {
     ctx.beginPath();
     path(f);
-    ctx.fillStyle = f.fills[tn];
+    ctx.fillStyle = f.properties.name === select ? T.select : f.fills[tn];
     ctx.fill();
   }
   ctx.lineJoin = "round";
@@ -478,7 +490,7 @@ function draw() {
       );
       ctx.strokeStyle = T.halo;
       ctx.strokeText(l.name, p[0], p[1]);
-      ctx.fillStyle = T.text;
+      ctx.fillStyle = l.name === select ? T.selectText : T.text;
       ctx.fillText(l.name, p[0], p[1]);
     }
     ctx.globalAlpha = 1;
