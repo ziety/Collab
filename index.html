@@ -27,6 +27,25 @@
       />
       <ul id="results" role="listbox" hidden></ul>
     </div>
+    <aside id="info" class="hidden" aria-label="Country information">
+      <header class="info-head">
+        <img id="info-flag" alt="" hidden />
+        <div class="info-title">
+          <h2 id="info-name"></h2>
+          <p id="info-sub"></p>
+        </div>
+      </header>
+      <section class="info-pop">
+        <div class="k live">Population <span class="badge">LIVE</span></div>
+        <div id="info-pop" class="big">—</div>
+        <div id="info-popsub" class="s"></div>
+      </section>
+      <div id="info-grid" class="grid"></div>
+      <p class="foot">
+        REST Countries · World Bank · Open-Meteo · USGS. Population, births and
+        deaths are running estimates.
+      </p>
+    </aside>
     <button id="theme" aria-label="Toggle theme" title="Toggle theme">
       <svg
         class="sun"

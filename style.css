@@ -173,3 +173,207 @@ canvas.drag {
   color: var(--hl);
   font-weight: 700;
 }
+
+/* ---------- country info panel ---------- */
+#info {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: 16px;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 344px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100% - 32px - env(safe-area-inset-top, 0px));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid var(--btn-border);
+  background: var(--btn-bg);
+  background: color-mix(in srgb, var(--btn-bg) 92%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  color: var(--btn-fg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+  font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.28s,
+    transform 0.28s,
+    visibility 0s,
+    background 0.3s,
+    color 0.3s;
+}
+#info.hidden {
+  opacity: 0;
+  transform: translateX(-14px);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.22s,
+    transform 0.22s,
+    visibility 0s 0.22s;
+}
+.info-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#info-flag {
+  width: 44px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px rgba(127, 127, 127, 0.35);
+  flex: none;
+}
+#info-flag[hidden] {
+  display: none;
+}
+.info-title {
+  min-width: 0;
+}
+#info-name {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+#info-sub {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  opacity: 0.6;
+}
+#info-sub:empty {
+  display: none;
+}
+.info-pop {
+  margin: 14px 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--hover);
+}
+#info .k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+#info .k.live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6);
+  animation: livepulse 2s infinite;
+}
+.info-pop .k.live::before {
+  display: none;
+}
+.badge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #34d399;
+  color: #052e1f;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  animation: livepulse 2s infinite;
+}
+@keyframes livepulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+#info .big {
+  margin-top: 4px;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--hl);
+}
+#info .s {
+  margin-top: 2px;
+  font-size: 11.5px;
+  opacity: 0.6;
+  overflow-wrap: anywhere;
+}
+#info .s:empty {
+  display: none;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.tile {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(127, 127, 127, 0.1);
+}
+.tile.wide {
+  grid-column: 1 / -1;
+}
+.tile .v {
+  margin-top: 3px;
+  font-size: 17px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.tile.wide .v {
+  font-size: 15px;
+}
+.tile .s {
+  font-size: 11px;
+}
+.bump {
+  animation: bump 0.4s ease-out;
+}
+@keyframes bump {
+  0% {
+    color: var(--hl);
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.foot {
+  margin: 12px 2px 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  opacity: 0.45;
+}
+@media (max-width: 900px) {
+  /* narrow screens: tuck the card under the search bar */
+  #info {
+    top: calc(env(safe-area-inset-top, 0px) + 68px);
+    left: 12px;
+    width: calc(100vw - 24px);
+    max-width: 420px;
+    max-height: calc(100% - 80px - env(safe-area-inset-top, 0px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge,
+  #info .k.live::before,
+  .bump {
+    animation: none;
+  }
+}

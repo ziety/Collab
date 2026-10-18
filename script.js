@@ -1,3 +1,5 @@
+import { showCountry, hideCountry } from "./panel.js";
+
 // Data is loaded with fetch() (not JSON module imports) so it works in every
 // browser and with any static server: Live Server, start.bat, etc.
 if (location.protocol === "file:") {
@@ -71,6 +73,8 @@ const labels = LOD[1].features
       c: d3.geoCentroid(best),
       area: d3.geoArea(f),
       parea: ba,
+      id: f.id,
+      feat: f,
     };
   })
   .filter((l) => l.name)
@@ -301,6 +305,7 @@ function choose(l) {
   closeResults();
   qEl.blur();
   flyTo(l);
+  showCountry(l);
 }
 function renderResults() {
   const q = norm(qEl.value.trim());
@@ -341,7 +346,11 @@ function renderResults() {
   qEl.setAttribute("aria-expanded", "true");
   setActive(shown.length ? 0 : -1);
 }
-qEl.addEventListener("input", renderResults);
+qEl.addEventListener("input", () => {
+  // any edit that no longer matches the chosen country (e.g. backspace) hides the card
+  if (norm(qEl.value.trim()) !== norm(select || "")) hideCountry();
+  renderResults();
+});
 qEl.addEventListener("focus", () => {
   qEl.select();
   renderResults();
