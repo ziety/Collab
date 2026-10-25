@@ -2,14 +2,6 @@ import { showCountry, hideCountry } from "./panel.js";
 
 // Data is loaded with fetch() (not JSON module imports) so it works in every
 // browser and with any static server: Live Server, start.bat, etc.
-if (location.protocol === "file:") {
-  document.body.insertAdjacentHTML(
-    "beforeend",
-    '<p style="position:fixed;inset:0;display:grid;place-items:center;margin:0;padding:24px;text-align:center;font:16px system-ui,sans-serif;color:#888">' +
-      "Browsers block loading data from file:// pages.<br>Open with start.bat or VS Code Live Server instead.</p>",
-  );
-  throw new Error("Opened via file:// - use start.bat or Live Server");
-}
 const [d110, d50] = await Promise.all(
   ["data/d110.json", "data/d50.json"].map((u) =>
     fetch(u).then((r) => r.json()),
