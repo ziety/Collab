@@ -116,7 +116,11 @@ canvas.drag {
   border: 1px solid var(--btn-border);
   background: var(--btn-bg);
   color: var(--btn-fg);
-  font: 16px system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    16px system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   outline: none;
   transition:
     background 0.3s,
@@ -147,7 +151,11 @@ canvas.drag {
   background: var(--btn-bg);
   color: var(--btn-fg);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  font: 15px system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    15px system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
 }
 #results[hidden] {
   display: none;
@@ -195,7 +203,11 @@ canvas.drag {
   backdrop-filter: blur(14px);
   color: var(--btn-fg);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
-  font: 14px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font:
+    14px/1.35 system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
   opacity: 1;
   transform: none;
   transition:
