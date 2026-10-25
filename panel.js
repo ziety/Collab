@@ -243,18 +243,6 @@ const isoFor = (l) => (l.id && ISO3[String(l.id).padStart(3, "0")]) || NAME_ISO3
 function getCountry(l, iso3) {
   if (rcCache.has(l.name)) return rcCache.get(l.name);
   const p = (async () => {
-    const tries = [];
-    if (l.id) tries.push(String(l.id).padStart(3, "0"));
-    if (iso3) tries.push(iso3);
-    for (const code of tries) {
-      try {
-        const j = await getJSON(`https://restcountries.com/v3.1/alpha/${code}`);
-        const rc = Array.isArray(j) ? j[0] : j;
-        if (rc && rc.cca3) return rc;
-      } catch (e) {
-        console.warn("[globe] REST Countries failed for", code, e.message);
-      }
-    }
     // World Bank country record (capital, coordinates, region)
     const rc = { cca3: iso3, latlng: [l.c[1], l.c[0]], partial: true };
     if (iso3) {
