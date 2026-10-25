@@ -221,11 +221,12 @@ canvas.drag {
   gap: 12px;
 }
 #info-flag {
-  width: 44px;
+  width: auto;
   height: 30px;
-  object-fit: cover;
-  border-radius: 5px;
-  box-shadow: 0 0 0 1px rgba(127, 127, 127, 0.35);
+  max-width: 60px;
+  object-fit: contain;
+  border-radius: 3px;
+  filter: drop-shadow(0 0 5px rgba(127, 127, 127, 0.6));
   flex: none;
 }
 #info-flag[hidden] {
