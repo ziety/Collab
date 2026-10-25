@@ -251,8 +251,14 @@ function getCountry(l, iso3) {
         const w = j && j[1] && j[1][0];
         if (w) {
           if (w.capitalCity) rc.capital = [w.capitalCity];
-          if (w.latitude && w.longitude) rc.capitalInfo = { latlng: [+w.latitude, +w.longitude] };
-          if (w.region && w.region.value && w.region.id !== "NA") rc.region = w.region.value;
+          if (w.latitude && w.longitude)
+            rc.capitalInfo = { latlng: [+w.latitude, +w.longitude] };
+          if (w.region && w.region.value && w.region.id !== "NA")
+            rc.region = w.region.value;
+          if (w.iso2Code)
+            rc.flags = {
+              svg: `https://flagcdn.com/${w.iso2Code.toLowerCase()}.svg`,
+            };
         }
       } catch (e) {
         console.warn("[globe] World Bank country lookup failed", e.message);
