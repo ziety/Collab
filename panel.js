@@ -278,6 +278,12 @@ function getCountry(l, iso3) {
       } catch (e) {
         console.warn("[globe] World Bank country lookup failed", e.message);
       }
+
+      // Extra country's flags that can't be pick up by World Bank API.
+      const ISO2_EXTRA = { VAT: "va", TWN: "tw", ESH: "eh" };
+      if (!rc.flags && ISO2_EXTRA[iso3]) {
+        rc.flags = { svg: `https://flagcdn.com/${ISO2_EXTRA[iso3]}.svg` };
+      }
     }
     return rc;
   })();
