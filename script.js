@@ -233,6 +233,34 @@ canvas.addEventListener(
   { passive: false },
 );
 
+canvas.addEventListener("dblclick", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const k = canvas.width / rect.width;
+  const x = (e.clientX - rect.left) * k;
+  const y = (e.clientY - rect.top) * k;
+  const [cx, cy] = proj.translate();
+
+  // Click outside the globe to clear the selection and the search box.
+  if (Math.hypot(x - cx, y - cy) > proj.scale()) {
+    select = null;
+    qEl.value = "";
+    hideCountry();
+    return;
+  }
+
+  const pt = proj.invert([x, y]);
+  const hit = labels.find((l) => d3.geoContains(l.feat, pt));
+  stopAuto();
+  if (hit) {
+    choose(hit);
+  } else {
+    // Clicked the ocean to clear the selection and the search box
+    select = null;
+    qEl.value = "";
+    hideCountry();
+  }
+});
+
 /* ---------- fly-to ---------- */
 function flyTo(l) {
   spinning = false;
