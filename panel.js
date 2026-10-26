@@ -120,8 +120,18 @@ const tile = (id, v, s) => {
 /* ---------- clocks ---------- */
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 // Clock for an IANA timezone (preferred) or a fixed UTC offset in minutes.
@@ -150,8 +160,10 @@ function makeClock({ tz, offsetMin = 0 }) {
           const o = {};
           for (const p of f.formatToParts(now)) o[p.type] = p.value;
           const z = g
-            ? (g.formatToParts(now).find((p) => p.type === "timeZoneName") ||
-                {}).value || ""
+            ? (
+                g.formatToParts(now).find((p) => p.type === "timeZoneName") ||
+                {}
+              ).value || ""
             : "";
           return {
             h: +o.hour % 24,
@@ -236,38 +248,41 @@ async function getJSON(url) {
 }
 // Natural Earth entries with no numeric id
 const NAME_ISO3 = { Kosovo: "XKX" };
-const isoFor = (l) => (l.id && ISO3[String(l.id).padStart(3, "0")]) || NAME_ISO3[l.name] || null;
+const isoFor = (l) =>
+  (l.id && ISO3[String(l.id).padStart(3, "0")]) || NAME_ISO3[l.name] || null;
 
 // REST Countries is the richest source but may be down/blocked, so every
 // failure falls back to the next source and finally to a minimal record.
 function getCountry(l, iso3) {
   if (rcCache.has(l.name)) return rcCache.get(l.name);
   const p = (async () => {
-    const tries = [];
-    if (l.id) tries.push(String(l.id).padStart(3, "0"));
-    if (iso3) tries.push(iso3);
-    for (const code of tries) {
-      try {
-        const j = await getJSON(`https://restcountries.com/v3.1/alpha/${code}`);
-        const rc = Array.isArray(j) ? j[0] : j;
-        if (rc && rc.cca3) return rc;
-      } catch (e) {
-        console.warn("[globe] REST Countries failed for", code, e.message);
-      }
-    }
     // World Bank country record (capital, coordinates, region)
     const rc = { cca3: iso3, latlng: [l.c[1], l.c[0]], partial: true };
     if (iso3) {
       try {
-        const j = await getJSON(`https://api.worldbank.org/v2/country/${iso3}?format=json`);
+        const j = await getJSON(
+          `https://api.worldbank.org/v2/country/${iso3}?format=json`,
+        );
         const w = j && j[1] && j[1][0];
         if (w) {
           if (w.capitalCity) rc.capital = [w.capitalCity];
-          if (w.latitude && w.longitude) rc.capitalInfo = { latlng: [+w.latitude, +w.longitude] };
-          if (w.region && w.region.value && w.region.id !== "NA") rc.region = w.region.value;
+          if (w.latitude && w.longitude)
+            rc.capitalInfo = { latlng: [+w.latitude, +w.longitude] };
+          if (w.region && w.region.value && w.region.id !== "NA")
+            rc.region = w.region.value;
+          if (w.iso2Code)
+            rc.flags = {
+              svg: `https://flagcdn.com/${w.iso2Code.toLowerCase()}.svg`,
+            };
         }
       } catch (e) {
         console.warn("[globe] World Bank country lookup failed", e.message);
+      }
+
+      // Extra country's flags that can't be pick up by World Bank API.
+      const ISO2_EXTRA = { VAT: "va", TWN: "tw", ESH: "eh" };
+      if (!rc.flags && ISO2_EXTRA[iso3]) {
+        rc.flags = { svg: `https://flagcdn.com/${ISO2_EXTRA[iso3]}.svg` };
       }
     }
     return rc;
@@ -407,19 +422,44 @@ async function load(s) {
   // World Bank indicators (each fills its own tile as it arrives)
   const popP = wbGet(code, "pop");
   wbGet(code, "life").then((r) => {
-    if (alive()) tile("life", r[0] ? nf1.format(r[0].value) + " yrs" : DASH, r[0] ? r[0].date + " estimate" : "");
+    if (alive())
+      tile(
+        "life",
+        r[0] ? nf1.format(r[0].value) + " yrs" : DASH,
+        r[0] ? r[0].date + " estimate" : "",
+      );
   });
   wbGet(code, "gdp").then((r) => {
-    if (alive()) tile("gdp", r[0] ? money.format(r[0].value) : DASH, r[0] ? r[0].date + " · current US$" : "");
+    if (alive())
+      tile(
+        "gdp",
+        r[0] ? money.format(r[0].value) : DASH,
+        r[0] ? r[0].date + " · current US$" : "",
+      );
   });
   wbGet(code, "gdppc").then((r) => {
-    if (alive()) tile("gdppc", r[0] ? money.format(r[0].value) : DASH, r[0] ? r[0].date + " · per person" : "");
+    if (alive())
+      tile(
+        "gdppc",
+        r[0] ? money.format(r[0].value) : DASH,
+        r[0] ? r[0].date + " · per person" : "",
+      );
   });
   wbGet(code, "net").then((r) => {
-    if (alive()) tile("internet", r[0] ? nf1.format(r[0].value) + "%" : DASH, r[0] ? r[0].date + " · of population" : "");
+    if (alive())
+      tile(
+        "internet",
+        r[0] ? nf1.format(r[0].value) + "%" : DASH,
+        r[0] ? r[0].date + " · of population" : "",
+      );
   });
   wbGet(code, "urb").then((r) => {
-    if (alive()) tile("urban", r[0] ? nf1.format(r[0].value) + "%" : DASH, r[0] ? r[0].date + " · live in cities" : "");
+    if (alive())
+      tile(
+        "urban",
+        r[0] ? nf1.format(r[0].value) + "%" : DASH,
+        r[0] ? r[0].date + " · live in cities" : "",
+      );
   });
   wbGet(code, "cbr").then((r) => {
     if (!alive()) return;
@@ -454,7 +494,9 @@ async function load(s) {
 function renderStatic(s) {
   const rc = s.rc;
   const region = [rc.subregion, rc.region].filter(Boolean);
-  subEl.textContent = region.length ? region.join(" · ") : (rc.name && rc.name.official) || "";
+  subEl.textContent = region.length
+    ? region.join(" · ")
+    : (rc.name && rc.name.official) || "";
   if (rc.flags && (rc.flags.svg || rc.flags.png)) {
     flagEl.onload = () => (flagEl.hidden = false);
     flagEl.onerror = () => (flagEl.hidden = true);
@@ -462,19 +504,29 @@ function renderStatic(s) {
   }
   const cap = (rc.capital || []).slice(0, 2).join(", ");
   tile("capital", cap || DASH, rc.independent === false ? "Territory" : "");
-  tile("area", rc.area ? nf0.format(rc.area) + " km²" : DASH, rc.landlocked ? "Landlocked" : "");
+  tile(
+    "area",
+    rc.area ? nf0.format(rc.area) + " km²" : DASH,
+    rc.landlocked ? "Landlocked" : "",
+  );
   const sd = COUNTRY_DATA[rc.cca3 === "UNK" ? "XKX" : rc.cca3] || {};
   const idd = rc.idd || {};
   const suf = idd.suffixes || [];
-  const call = sd.call || (idd.root ? idd.root + (suf.length === 1 ? suf[0] : "") : "");
+  const call =
+    sd.call || (idd.root ? idd.root + (suf.length === 1 ? suf[0] : "") : "");
   tile("call", call || DASH, "");
-  const side = sd.side || (rc.car && rc.car.side ? rc.car.side[0].toUpperCase() + rc.car.side.slice(1) : "");
+  const side =
+    sd.side ||
+    (rc.car && rc.car.side
+      ? rc.car.side[0].toUpperCase() + rc.car.side.slice(1)
+      : "");
   tile("drive", side || DASH, "");
   const langs = sd.langs || Object.values(rc.languages || {});
   tile(
     "lang",
     langs.length
-      ? langs.slice(0, 4).join(", ") + (langs.length > 4 ? ` +${langs.length - 4} more` : "")
+      ? langs.slice(0, 4).join(", ") +
+          (langs.length > 4 ? ` +${langs.length - 4} more` : "")
       : DASH,
     "",
   );
@@ -492,7 +544,11 @@ function renderCurrency(s, rates) {
   const sd = COUNTRY_DATA[rc.cca3 === "UNK" ? "XKX" : rc.cca3] || {};
   let list = sd.cur; // [[code, name, symbol], ...]
   if (!list || !list.length)
-    list = Object.entries(rc.currencies || {}).map(([c, v]) => [c, v.name || c, v.symbol || ""]);
+    list = Object.entries(rc.currencies || {}).map(([c, v]) => [
+      c,
+      v.name || c,
+      v.symbol || "",
+    ]);
   if (!list.length) return tile("cur", DASH, "");
   const [c0, , sym0] = list[0];
   let sub = (sym0 && sym0 !== c0 ? sym0 + " · " : "") + c0;
@@ -501,7 +557,10 @@ function renderCurrency(s, rates) {
     sub += ` · 1 USD = ${Number(rates[c0].toPrecision(4)).toLocaleString("en-US")} ${c0}`;
   tile(
     "cur",
-    list.slice(0, 2).map((x) => x[1]).join(", ") + (list.length > 2 ? ` +${list.length - 2}` : ""),
+    list
+      .slice(0, 2)
+      .map((x) => x[1])
+      .join(", ") + (list.length > 2 ? ` +${list.length - 2}` : ""),
     sub,
   );
 }
@@ -548,7 +607,11 @@ function tick(s) {
   if (state !== s) return;
   const now = Date.now();
   const c = s.clock.parts(now);
-  tile("time", `${pad(c.h)}:${pad(c.m)}:${pad(c.s)}`, c.label + (c.zone ? " · " + c.zone : ""));
+  tile(
+    "time",
+    `${pad(c.h)}:${pad(c.m)}:${pad(c.s)}`,
+    c.label + (c.zone ? " · " + c.zone : ""),
+  );
 
   if (s.pop) {
     const pn = popAt(s.pop, now);
@@ -560,20 +623,35 @@ function tick(s) {
     const change = pn - popAt(s.pop, now - sinceMid * 1000);
     tile(
       "change",
-      (change >= 0 ? "+" : "−") + (Math.abs(change) < 10 ? nf1.format(Math.abs(change)) : nf0.format(Math.abs(change))),
+      (change >= 0 ? "+" : "−") +
+        (Math.abs(change) < 10
+          ? nf1.format(Math.abs(change))
+          : nf0.format(Math.abs(change))),
       "people since midnight (net)",
     );
     if (s.rc && s.rc.area) {
       const d = pn / s.rc.area;
-      tile("density", (d < 100 ? nf1.format(d) : nf0.format(d)) + " /km²", "people per km²");
+      tile(
+        "density",
+        (d < 100 ? nf1.format(d) : nf0.format(d)) + " /km²",
+        "people per km²",
+      );
     }
     if (s.cbr) {
       const perSec = (pn * s.cbr) / 1000 / YEAR_S;
-      tile("births", nf0.format(Math.floor(perSec * sinceMid)), rateText(perSec));
+      tile(
+        "births",
+        nf0.format(Math.floor(perSec * sinceMid)),
+        rateText(perSec),
+      );
     } else if (s.cbr === false) tile("births", DASH, "");
     if (s.cdr) {
       const perSec = (pn * s.cdr) / 1000 / YEAR_S;
-      tile("deaths", nf0.format(Math.floor(perSec * sinceMid)), rateText(perSec));
+      tile(
+        "deaths",
+        nf0.format(Math.floor(perSec * sinceMid)),
+        rateText(perSec),
+      );
     } else if (s.cdr === false) tile("deaths", DASH, "");
   }
   updateSun(s, now);
@@ -586,7 +664,8 @@ function updateSun(s, now) {
   const day = next.type === "sunset";
   tile(
     "sun",
-    (day ? "☀️ Daytime · sunset in " : "🌙 Night · sunrise in ") + dur(next.t - now),
+    (day ? "☀️ Daytime · sunset in " : "🌙 Night · sunrise in ") +
+      dur(next.t - now),
     s.sunTxt ? `Sunrise ${s.sunTxt.rise} · Sunset ${s.sunTxt.set} (local)` : "",
   );
 }
@@ -609,7 +688,8 @@ function startWeather(s, latlng) {
       applyWeather(s, j);
     } catch (_) {
       if (state !== s) return;
-      if (T.weather.v.textContent === "…") tile("weather", DASH, "Weather unavailable");
+      if (T.weather.v.textContent === "…")
+        tile("weather", DASH, "Weather unavailable");
     }
   };
   go();
@@ -626,12 +706,17 @@ function applyWeather(s, j) {
   );
   if (j.timezone && j.timezone !== s.tz) {
     s.tz = j.timezone;
-    s.clock = makeClock({ tz: j.timezone, offsetMin: Math.round((j.utc_offset_seconds || 0) / 60) });
+    s.clock = makeClock({
+      tz: j.timezone,
+      offsetMin: Math.round((j.utc_offset_seconds || 0) / 60),
+    });
   }
   const off = j.utc_offset_seconds || 0;
   const parse = (str) => {
     const m = /(\d+)-(\d+)-(\d+)T(\d+):(\d+)/.exec(str || "");
-    return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) - off * 1000 : null;
+    return m
+      ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) - off * 1000
+      : null;
   };
   const d = j.daily || {};
   const ev = [];
@@ -660,10 +745,15 @@ function startQuakes(s) {
       const hits = feed.features.filter(
         (q) =>
           q.geometry &&
-          d3.geoContains(s.l.feat, [q.geometry.coordinates[0], q.geometry.coordinates[1]]),
+          d3.geoContains(s.l.feat, [
+            q.geometry.coordinates[0],
+            q.geometry.coordinates[1],
+          ]),
       );
       if (!hits.length) return tile("quakes", "0", "None in the last 24 h");
-      const big = hits.reduce((a, b) => ((b.properties.mag || 0) > (a.properties.mag || 0) ? b : a));
+      const big = hits.reduce((a, b) =>
+        (b.properties.mag || 0) > (a.properties.mag || 0) ? b : a,
+      );
       tile(
         "quakes",
         String(hits.length),
@@ -671,7 +761,8 @@ function startQuakes(s) {
       );
     } catch (_) {
       if (state !== s) return;
-      if (T.quakes.v.textContent === "…") tile("quakes", DASH, "Feed unavailable");
+      if (T.quakes.v.textContent === "…")
+        tile("quakes", DASH, "Feed unavailable");
     }
   };
   go();
