@@ -21,8 +21,38 @@ function hash(s) {
 
 const HUES = [88, 104, 72, 60, 118, 46];
 
-function prep(t) {
+// A ring that has collapsed to fewer than 3 distinct points (a tiny island
+// after simplification) has zero area, and d3 can't tell its inside from its
+// outside: it floods the whole visible hemisphere with that country's colour.
+function ringOk(r) {
+  const a = r[0];
+  let b = null;
+  for (let i = 1; i < r.length; i++) {
+    const p = r[i];
+    if (p[0] === a[0] && p[1] === a[1]) continue;
+    if (!b) b = p;
+    else if (!(p[0] === b[0] && p[1] === b[1])) return true;
+  }
+  return false;
+}
+function dropDegenerate(g) {
+  const polys =
+    g.type === "Polygon"
+      ? [g.coordinates]
+      : g.type === "MultiPolygon"
+        ? g.coordinates
+        : null;
+  if (!polys) return g;
+  const out = [];
+  for (const rings of polys)
+    if (ringOk(rings[0]))
+      out.push(rings.filter((r, i) => i === 0 || ringOk(r)));
+  return { type: "MultiPolygon", coordinates: out };
+}
+
+function prep(t, capsFrom) {
   const feats = topojson.feature(t, t.objects.countries).features;
+  feats.forEach((f) => (f.geometry = dropDegenerate(f.geometry)));
   feats.forEach((f) => {
     const h = hash(f.properties.name || "x");
     const hue = HUES[h % HUES.length],
@@ -32,14 +62,147 @@ function prep(t) {
       dark: "hsl(" + hue + "," + (20 + j) + "%," + (21 + j) + "%)",
     };
   });
+  // (a simplified copy stays within a hair of the original shape, so it can
+  // reuse the original's bounds; the culling margin in draw() covers the rest)
+  feats.forEach((f, i) => {
+    f.cap = capsFrom
+      ? capsFrom[i].cap
+      : capOf(d3.geoCentroid(f), geomPoints(f.geometry));
+  });
   return {
     features: feats,
-    borders: topojson.mesh(t, t.objects.countries, (a, b) => a !== b),
-    coast: topojson.mesh(t, t.objects.countries, (a, b) => a === b),
+    borders: chunkLines(topojson.mesh(t, t.objects.countries, (a, b) => a !== b)),
+    coast: chunkLines(topojson.mesh(t, t.objects.countries, (a, b) => a === b)),
   };
 }
 
+// Bounding caps (centre + angular radius, radians) let draw() skip anything
+// that is off-screen, which is what keeps zoomed-in rotation smooth.
+function geomPoints(g) {
+  const out = [];
+  const walk = (a) => {
+    if (typeof a[0] === "number") out.push(a);
+    else a.forEach(walk);
+  };
+  walk(g.coordinates);
+  return out;
+}
+function capOf(c, pts) {
+  if (!c || !isFinite(c[0]) || !isFinite(c[1])) return { c: [0, 0], r: Math.PI };
+  const rad = Math.PI / 180,
+    cl = c[1] * rad,
+    cx = Math.cos(cl) * Math.cos(c[0] * rad),
+    cy = Math.cos(cl) * Math.sin(c[0] * rad),
+    cz = Math.sin(cl);
+  let minDot = 1;
+  for (const p of pts) {
+    const l = p[1] * rad,
+      cp = Math.cos(l);
+    const dot =
+      cx * cp * Math.cos(p[0] * rad) + cy * cp * Math.sin(p[0] * rad) + cz * Math.sin(l);
+    if (dot < minDot) minDot = dot;
+  }
+  return { c, r: Math.acos(Math.max(-1, minDot)) };
+}
+// split a mesh's long lines into short pieces (sharing end points) with caps
+function chunkLines(mesh, n = 40) {
+  const out = [];
+  for (const line of mesh.coordinates) {
+    for (let i = 0; i < line.length - 1; i += n) {
+      const pts = line.slice(i, i + n + 1);
+      out.push({ pts, cap: capOf(pts[pts.length >> 1], pts) });
+    }
+  }
+  return out;
+}
+
 const LOD = [prep(d110), prep(d50)];
+
+/* ---------- zoom-adaptive detail ----------
+   Drawing the full detailed map is expensive at mid zoom (most of the globe
+   is still on screen) even though most of its points are far smaller than a
+   pixel. So each point of the detailed map gets an importance (Douglas-Peucker
+   distance, computed once) and, per zoom, we draw a copy that only keeps
+   points bigger than a pixel or so: same picture, far fewer points. While the
+   globe is moving, fine detail is invisible, so it drops more of it. */
+const PX_MOVING = 1.5, // tolerance in screen pixels while spinning/zooming
+  PX_STILL = 0.6; // ...and when paused and still
+const DETAIL_TOLS = [0.2, 0.1, 0.05, 0.025, 0.0125, 0.007]; // degrees, coarse -> fine
+
+function arcImportance(xs, ys, sx, sy) {
+  const n = xs.length,
+    w = new Float64Array(n);
+  w[0] = w[n - 1] = Infinity;
+  const stack = [[0, n - 1, Infinity]];
+  while (stack.length) {
+    const [a, b, cap] = stack.pop();
+    if (b - a < 2) continue;
+    const ax = xs[a] * sx,
+      ay = ys[a] * sy,
+      dx = xs[b] * sx - ax,
+      dy = ys[b] * sy - ay,
+      len = Math.hypot(dx, dy);
+    let md = -1,
+      mi = a + 1;
+    for (let i = a + 1; i < b; i++) {
+      const px = xs[i] * sx - ax,
+        py = ys[i] * sy - ay;
+      const d = len ? Math.abs(px * dy - py * dx) / len : Math.hypot(px, py);
+      if (d > md) {
+        md = d;
+        mi = i;
+      }
+    }
+    w[mi] = Math.min(md, cap); // never more important than the point that split it
+    stack.push([a, mi, w[mi]], [mi, b, w[mi]]);
+  }
+  return w;
+}
+const detailSrc = (() => {
+  const [sx, sy] = d50.transform.scale;
+  return d50.arcs.map((arc) => {
+    const xs = new Int32Array(arc.length),
+      ys = new Int32Array(arc.length);
+    let x = 0,
+      y = 0;
+    arc.forEach((p, i) => {
+      xs[i] = x += p[0];
+      ys[i] = y += p[1];
+    });
+    return { xs, ys, w: arcImportance(xs, ys, sx, sy) };
+  });
+})();
+function simplified(tol) {
+  const arcs = detailSrc.map(({ xs, ys, w }) => {
+    const out = [];
+    let px = 0,
+      py = 0;
+    for (let i = 0; i < xs.length; i++) {
+      if (w[i] < tol) continue;
+      out.push([xs[i] - px, ys[i] - py]);
+      px = xs[i];
+      py = ys[i];
+    }
+    return out;
+  });
+  return prep({ ...d50, arcs }, LOD[1].features);
+}
+const detailLevels = [];
+const detailLevel = (i) => (detailLevels[i] ||= simplified(DETAIL_TOLS[i]));
+// build the levels in the background so the first zoom doesn't hitch
+(function warm(i = 0) {
+  if (i >= DETAIL_TOLS.length) return;
+  setTimeout(() => {
+    detailLevel(i);
+    warm(i + 1);
+  }, i ? 150 : 1500);
+})();
+// the coarsest level that is still within `px` pixels of the full detail at this scale
+function detailFor(scale, px) {
+  const need = ((px * 180) / Math.PI) / scale;
+  const i = DETAIL_TOLS.findIndex((tol) => tol <= need);
+  return i < 0 ? LOD[1] : detailLevel(i);
+}
 // label anchors: centroid of each country's largest piece
 
 const labels = LOD[1].features
@@ -137,13 +300,25 @@ let lon = 20,
   zoomT = 1,
   dragging = false,
   scrolling = false,
-  spinning = true, // auto-rotation; stops for good on first click/drag/zoom
+  spinning = true, // auto-rotation; toggled by the play/pause button, stopped by fly-to
   flight = null, // active fly-to animation
   wheelTimer;
 
+const playEl = document.getElementById("play");
+function setSpinning(on) {
+  spinning = on;
+  playEl.classList.toggle("on", on); // "on" = rotating -> shows the pause icon
+  const label = on ? "Pause rotation" : "Play rotation";
+  playEl.setAttribute("aria-label", label);
+  playEl.title = label;
+}
+setSpinning(true);
+playEl.addEventListener("click", () => setSpinning(!spinning));
+
+// user input cancels any fly-to in progress, but never the auto-rotation:
+// only the pause button (or choosing a country) stops that
 function stopAuto() {
-  spinning = false;
-  flight = null; // user input cancels any fly-to in progress
+  flight = null;
 }
 
 const MINZ = 0.7,
@@ -235,12 +410,18 @@ canvas.addEventListener(
 
 /* ---------- fly-to ---------- */
 function flyTo(l) {
-  spinning = false;
+  setSpinning(false);
   const lat1 = Math.max(-85, Math.min(85, l.c[1]));
   const dlon = ((((l.c[0] - lon) % 360) + 540) % 360) - 180; // shortest way round
   // pick a zoom so the country fills a comfortable part of the view
   const r = Math.sqrt(l.parea / Math.PI); // angular radius (rad)
-  const z1 = Math.max(1, Math.min(10, 0.61 / Math.sin(Math.max(r, 0.002))));
+  // lower FLY_FILL = more zoomed out when a country is selected (was 0.61 / max 10)
+  const FLY_FILL = 0.45,
+    FLY_MAXZ = 7.5;
+  const z1 = Math.max(
+    1,
+    Math.min(FLY_MAXZ, FLY_FILL / Math.sin(Math.max(r, 0.002))),
+  );
   const dist = d3.geoDistance([lon, lat], l.c);
   flight = {
     t0: performance.now(),
@@ -367,6 +548,13 @@ document.addEventListener("pointerdown", (e) => {
   if (!e.target.closest("#search")) closeResults();
 });
 
+// shuffle: pick a random country (never the one already selected) and run it
+// through the same path as choosing it from the search results
+document.getElementById("shuffle").addEventListener("click", () => {
+  const pool = countries.filter((c) => c.l.name !== select);
+  choose(pool[Math.floor(Math.random() * pool.length)].l);
+});
+
 /* ---------- render ---------- */
 function draw() {
   const T = THEMES[theme()],
@@ -418,22 +606,39 @@ function draw() {
 
   // countries
   const lod =
-      scrolling || dragging || flight ? LOD[0] : zoom >= 1.7 ? LOD[1] : LOD[0],
+      scrolling || dragging || flight
+        ? LOD[0]
+        : zoom >= 1.7
+          ? detailFor(
+              scale,
+              spinning || Math.abs(zoomT - zoom) > 0.01 ? PX_MOVING : PX_STILL,
+            )
+          : LOD[0],
     tn = theme();
+  // only draw what can be on screen: angular radius of the visible area
+  const half = Math.hypot(W, H) / 2,
+    lim = (half < scale ? Math.asin(half / scale) : Math.PI / 2) + 0.03,
+    view = [lon, lat],
+    seen = (k) => d3.geoDistance(k.c, view) - k.r <= lim;
   for (const f of lod.features) {
+    if (!seen(f.cap)) continue;
     ctx.beginPath();
     path(f);
     ctx.fillStyle = f.properties.name === select ? T.select : f.fills[tn];
     ctx.fill();
   }
+  const lines = (chunks) => ({
+    type: "MultiLineString",
+    coordinates: chunks.filter((k) => seen(k.cap)).map((k) => k.pts),
+  });
   ctx.lineJoin = "round";
   ctx.beginPath();
-  path(lod.borders);
+  path(lines(lod.borders));
   ctx.lineWidth = Math.min(1.6, 0.5 + zoom * 0.12);
   ctx.strokeStyle = T.border;
   ctx.stroke();
   ctx.beginPath();
-  path(lod.coast);
+  path(lines(lod.coast));
   ctx.lineWidth = Math.min(1.8, 0.7 + zoom * 0.12);
   ctx.strokeStyle = T.coast;
   ctx.stroke();

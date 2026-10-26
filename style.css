@@ -53,13 +53,13 @@ canvas {
 canvas.drag {
   cursor: grabbing;
 }
-#theme {
+.ctl {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 16px);
-  right: 16px;
   z-index: 5;
   width: 42px;
   height: 42px;
+  padding: 0;
   border-radius: 50%;
   border: 1px solid var(--btn-border);
   background: var(--btn-bg);
@@ -73,12 +73,34 @@ canvas.drag {
     color 0.3s,
     transform 0.15s;
 }
-#theme:hover {
+.ctl:hover {
   transform: scale(1.08);
 }
-#theme svg {
+.ctl:focus-visible {
+  outline: 2px solid var(--hl);
+  outline-offset: 2px;
+}
+.ctl svg {
   width: 20px;
   height: 20px;
+}
+#theme {
+  right: 16px;
+}
+#shuffle {
+  right: 66px;
+}
+#play {
+  right: 116px;
+}
+#play .i-pause {
+  display: none;
+}
+#play.on .i-play {
+  display: none;
+}
+#play.on .i-pause {
+  display: block;
 }
 #theme .moon {
   display: none;
@@ -105,7 +127,16 @@ canvas.drag {
   left: 50%;
   transform: translateX(-50%);
   z-index: 6;
-  width: min(380px, calc(100vw - 148px));
+  width: min(380px, calc(100vw - 348px));
+}
+@media (max-width: 720px) {
+  /* narrow screens: no room to centre the bar between the three buttons */
+  #search {
+    left: 12px;
+    transform: none;
+    width: calc(100vw - 186px);
+    max-width: 380px;
+  }
 }
 #q {
   box-sizing: border-box;
